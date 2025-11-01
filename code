@@ -1,0 +1,145 @@
+import java.sql.*;
+import java.util.Scanner;
+
+public class JdbcCollegeAdmission {
+
+    public static void main(String[] args) {
+
+        String url  = "jdbc:mysql://localhost:3306/college_admissions";
+        String user = "root";            // change as needed
+        String pass = "yourpassword";   // change as needed
+
+        Scanner sc = new Scanner(System.in);
+
+        try {
+            // load driver (optional for modern drivers but safe)
+            Class.forName("com.mysql.cj.jdbc.Driver");
+
+            // connect
+            Connection con = DriverManager.getConnection(url, user, pass);
+            System.out.println("✅ Connected to college_admissions database!");
+
+            while (true) {
+                System.out.println("\n=== College Admission Menu ===");
+                System.out.println("1. Add Application");
+                System.out.println("2. Display All Applications");
+                System.out.println("3. Update Application Status");
+                System.out.println("4. Delete Application");
+                System.out.println("5. Exit");
+                System.out.print("Enter your choice: ");
+
+                int choice;
+                try {
+                    choice = Integer.parseInt(sc.nextLine().trim());
+                } catch (NumberFormatException nfe) {
+                    System.out.println("❌ Invalid input. Please enter a number.");
+                    continue;
+                }
+
+                switch (choice) {
+
+                    case 1:
+                        // Insert new application
+                        System.out.print("Enter Application ID: ");
+                        int id = Integer.parseInt(sc.nextLine().trim());
+                        System.out.print("Enter Applicant Name: ");
+                        String name = sc.nextLine().trim();
+                        System.out.print("Enter Age: ");
+                        int age = Integer.parseInt(sc.nextLine().trim());
+                        System.out.print("Enter Course Applied For: ");
+                        String course = sc.nextLine().trim();
+
+                        String insertSql = "INSERT INTO application (id, name, age, course, status) VALUES (?, ?, ?, ?, ?)";
+                        try (PreparedStatement ps = con.prepareStatement(insertSql)) {
+                            ps.setInt(1, id);
+                            ps.setString(2, name);
+                            ps.setInt(3, age);
+                            ps.setString(4, course);
+                            ps.setString(5, "Pending");
+                            int rows = ps.executeUpdate();
+                            System.out.println(rows + " application added (status = Pending).");
+                        } catch (SQLException e) {
+                            System.out.println("⚠ Error inserting application: " + e.getMessage());
+                        }
+                        break;
+
+                    case 2:
+                        // Display all applications
+                        String selectSql = "SELECT * FROM application ORDER BY id";
+                        try (Statement stmt = con.createStatement();
+                             ResultSet rs = stmt.executeQuery(selectSql)) {
+
+                            System.out.printf("\n%-5s %-25s %-5s %-20s %-10s%n", "ID", "Name", "Age", "Course", "Status");
+                            System.out.println("---------------------------------------------------------------------");
+                            boolean hasRows = false;
+                            while (rs.next()) {
+                                hasRows = true;
+                                System.out.printf(
+                                    "%-5d %-25s %-5d %-20s %-10s%n",
+                                    rs.getInt("id"),
+                                    rs.getString("name"),
+                                    rs.getInt("age"),
+                                    rs.getString("course"),
+                                    rs.getString("status")
+                                );
+                            }
+                            if (!hasRows) System.out.println("No applications found.");
+                        } catch (SQLException e) {
+                            System.out.println("⚠ Error fetching applications: " + e.getMessage());
+                        }
+                        break;
+
+                    case 3:
+                        // Update status
+                        System.out.print("Enter Application ID to update: ");
+                        int uid = Integer.parseInt(sc.nextLine().trim());
+                        System.out.print("Enter new status (Pending/Accepted/Rejected): ");
+                        String newStatus = sc.nextLine().trim();
+
+                        String updateSql = "UPDATE application SET status = ? WHERE id = ?";
+                        try (PreparedStatement ps = con.prepareStatement(updateSql)) {
+                            ps.setString(1, newStatus);
+                            ps.setInt(2, uid);
+                            int updated = ps.executeUpdate();
+                            System.out.println(updated + " record(s) updated.");
+                        } catch (SQLException e) {
+                            System.out.println("⚠ Error updating status: " + e.getMessage());
+                        }
+                        break;
+
+                    case 4:
+                        // Delete application
+                        System.out.print("Enter Application ID to delete: ");
+                        int did = Integer.parseInt(sc.nextLine().trim());
+
+                        String deleteSql = "DELETE FROM application WHERE id = ?";
+                        try (PreparedStatement ps = con.prepareStatement(deleteSql)) {
+                            ps.setInt(1, did);
+                            int deleted = ps.executeUpdate();
+                            System.out.println(deleted + " record(s) deleted.");
+                        } catch (SQLException e) {
+                            System.out.println("⚠ Error deleting application: " + e.getMessage());
+                        }
+                        break;
+
+                    case 5:
+                        // Exit
+                        System.out.println("Exiting... Goodbye!");
+                        try { con.close(); } catch (SQLException ignore) {}
+                        sc.close();
+                        System.exit(0);
+                        break;
+
+                    default:
+                        System.out.println("❌ Invalid choice. Try again.");
+                }
+            }
+
+        } catch (ClassNotFoundException cnfe) {
+            System.out.println("⚠ JDBC Driver not found: " + cnfe.getMessage());
+        } catch (SQLException sqle) {
+            System.out.println("⚠ Database error: " + sqle.getMessage());
+        }
+    }
+}
+
